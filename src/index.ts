@@ -17,11 +17,16 @@ export class Connect4 {
   private board: string[][];
   private currentPlayer: typeof PLAYER_ONE | typeof PLAYER_TWO;
   private gameOver: boolean;
-  private winner: string | null;
+  private winner: typeof PLAYER_ONE | typeof PLAYER_TWO | null;
   private moveCount: number;
   private lastMove: [number, number] | null;
   private readonly ROWS = 6;
   private readonly COLS = 7;
+  // Board indexes
+  private idxLeftCol = 0;
+  private idxRightCol = this.COLS - 1;
+  private idxTopRow = 0;
+  private idxBottomRow = this.ROWS - 1;
 
   constructor() {
     this.board = Array.from({ length: this.ROWS }, () =>
@@ -33,28 +38,37 @@ export class Connect4 {
     this.moveCount = 0;
     this.lastMove = null;
   }
-  play(userCol: number): string {
-    const col = userCol - 1;
+  play(userColumn: number): string {
+    const idxTokenCol = userColumn - 1;
+
     // Check if game is over
     if (this.gameOver) return "Game over, please start a new game";
+
     // Check if valid column
-    if (col < 0 || col > this.COLS - 1)
+    if (idxTokenCol < this.idxLeftCol || idxTokenCol > this.idxRightCol)
       return `⛔ Invalid column: must be between 1 and ${this.COLS}`;
+
     // Check if column is full
-    if (this.board[0][col] !== EMPTY)
-      return `⛔ Invalid column: column ${col + 1} is full`;
-    // Drop token
-    for (let row = this.ROWS - 1; row >= 0; row--) {
-      if (this.board[row][col] === EMPTY) {
+    if (this.board[this.idxTopRow][idxTokenCol] !== EMPTY)
+      return `⛔ Invalid column: column ${idxTokenCol + 1} is full`;
+
+    // Try to drop token from bottom to top
+    for (
+      let idxTokenRow = this.idxBottomRow;
+      idxTokenRow >= this.idxTopRow;
+      idxTokenRow--
+    ) {
+      // Check if cell is empty, if so, insert token
+      if (this.board[idxTokenRow][idxTokenCol] === EMPTY) {
         // Insert token
-        this.board[row][col] = this.currentPlayer;
+        this.board[idxTokenRow][idxTokenCol] = this.currentPlayer;
         // Increment move count
         this.moveCount++;
         // Update last move
-        this.lastMove = [row, col];
+        this.lastMove = [idxTokenRow, idxTokenCol];
 
         // If player wins, return message
-        if (this.checkWinner(row, col)) {
+        if (this.checkWinner(idxTokenRow, idxTokenCol)) {
           this.gameOver = true;
           this.winner = this.currentPlayer;
           return `🏆 Player ${this.winner} wins!`;
@@ -70,44 +84,55 @@ export class Connect4 {
     return "";
   }
 
-  private checkWinner(row: number, col: number): boolean {
+  private checkWinner(idxTokenRow: number, idxTokenCol: number): boolean {
     const directions = [
-      [0, 1], // Horizontal
-      [1, 0], // Vertical
-      [1, 1], // Diagonal /
-      [1, -1], // Diagonal \
+      [0, 1], //  ➡️
+      [1, 0], //  ⬇️
+      [1, 1], // ↘️
+      [1, -1], // ↙️
     ];
-    const player = this.board[row][col];
+    const player = this.board[idxTokenRow][idxTokenCol];
 
-    for (const [dr, dc] of directions) {
-      let count = 1;
-      for (let i = 1; i < 4; i++) {
-        const r = row + dr * i,
-          c = col + dc * i;
+    for (const [verticalDir, horizontalDir] of directions) {
+      let consecutiveTokens = 1; // Init with user token
+
+      // Check for 4 consecutive tokens in direction
+      for (let distance = 1; distance <= 3; distance++) {
+        const currentRowIndex = idxTokenRow + verticalDir * distance;
+        const currentColumnIndex = idxTokenCol + horizontalDir * distance;
+
         if (
-          r < 0 ||
-          r >= this.ROWS ||
-          c < 0 ||
-          c >= this.COLS ||
-          this.board[r][c] !== player
+          currentRowIndex < this.idxTopRow || // If not exceeding board by top
+          currentRowIndex > this.idxBottomRow || // If not exceeding board by bottom
+          currentColumnIndex < this.idxLeftCol || // If not exceeding board by left
+          currentColumnIndex > this.idxRightCol || // If not exceeding board by right
+          this.board[currentRowIndex][currentColumnIndex] !== player
         )
           break;
-        count++;
+
+        // If token is player's, increment consecutive tokens
+        consecutiveTokens++;
       }
-      for (let i = 1; i < 4; i++) {
-        const r = row - dr * i,
-          c = col - dc * i;
+
+      // Check for 4 consecutive tokens in opposite direction
+      for (let distance = 1; distance <= 3; distance++) {
+        const currentRowIndex = idxTokenRow - verticalDir * distance,
+          currentColumnIndex = idxTokenCol - horizontalDir * distance;
+
         if (
-          r < 0 ||
-          r >= this.ROWS ||
-          c < 0 ||
-          c >= this.COLS ||
-          this.board[r][c] !== player
+          currentRowIndex < this.idxTopRow ||
+          currentRowIndex > this.idxBottomRow ||
+          currentColumnIndex < this.idxLeftCol ||
+          currentColumnIndex > this.idxRightCol ||
+          this.board[currentRowIndex][currentColumnIndex] !== player
         )
           break;
-        count++;
+
+        consecutiveTokens++;
       }
-      if (count >= 4) return true;
+
+      // If 4 consecutive tokens found, return user wins
+      if (consecutiveTokens >= 4) return true;
     }
 
     return false;
@@ -115,10 +140,10 @@ export class Connect4 {
 
   print() {
     this.board.forEach((row) => console.log(row.join(" ")));
-    console.log("----------------\n");
+    console.log("\n");
     if (this.winner) console.log(`🏆 Player ${this.winner} wins!`);
-    if (this.gameOver) console.log("Game over, please start a new game");
     if (!this.gameOver && !this.winner)
-      console.log(`Turn: Player ${this.currentPlayer}`);
+      console.log(`Next player: ${this.currentPlayer}\n`);
+    if (this.gameOver) console.log("\nGame over, please start a new game");
   }
 }
