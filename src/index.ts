@@ -38,6 +38,7 @@ export class Connect4 {
     this.moveCount = 0;
     this.lastMove = null;
   }
+
   play(userColumn: number): string {
     const idxTokenCol = userColumn - 1;
 
